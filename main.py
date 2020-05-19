@@ -1,12 +1,14 @@
 import tkinter as tk
 import argparse
-from board import all_ranks, all_files, WHITE, BLACK, Board
+from board import all_ranks, all_files, WHITE, BLACK, Board, Move
+from tests import test_movement
 
 def parse_config(config_pth):
     pass
 
 
 
+#NOTE: the keys in this dicctionary MUST match with the keys in name_to_cls in board.py
 default_chess_positions = {WHITE: {'b': ['c1', 'f1'], 'k': ['b1', 'g1'], 'r': ['a1', 'h1'], 'q': ['d1'], 'K': ['e1']},
                             BLACK: {'b': ['c8', 'f8'], 'k': ['b8', 'g8'], 'r': ['a8', 'h8'], 'q': ['d8'], 'K': ['e8']}}
 default_chess_positions[WHITE]['p'] = [f + '2' for f in all_files]
@@ -67,8 +69,10 @@ def get_config(all_missing_pieces):
 def setup_board(config):
     #print(config)
     #print(default_chess_positions)
-    print(Board(config))
+    board = Board(config)
+    return board
     pass
+
 
 def main():
     parser = argparse.ArgumentParser(description='Process chess configuration')
@@ -83,7 +87,10 @@ def main():
         all_missing = parse_missing(args.white, args.black)
         b_config = get_config(all_missing)
 
-    setup_board(b_config)
+    board = setup_board(b_config)
+    test_movement(board)
+
+
 
 
 if __name__ == '__main__':
