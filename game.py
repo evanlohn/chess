@@ -15,6 +15,7 @@ def click_handler(r_ind, c_ind, game):
 			r_sel, c_sel = game.selected
 			grid_r_sel, grid_c_sel = game.bcoords2gcoords(r_sel, c_sel)
 			sel_frame = game.board_frame.grid_slaves(row=grid_r_sel, column=grid_c_sel)[0]
+
 			if not (r_sel == r_ind and c_sel == c_ind):
 				# abstraction to deal with castling and en passant
 				mv = game.create_move(game.selected, (r_ind, c_ind))

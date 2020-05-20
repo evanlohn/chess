@@ -33,6 +33,8 @@ class Board:
                 for loc in config[color][piece]:
                     row, col = sq_to_inds(loc)
                     self.board_lst[row][col] = cls(color) 
+        self.first_move = None
+        self.last_move = None
 
     def get_piece(self, sq):
         row, col = sq_to_inds(sq)
@@ -55,6 +57,8 @@ class Board:
                         king_loc = (r_ind, c_ind)
         return king_loc in locs        
 
+
+
     def __str__(self):
         s = ''
         for row in self.board_lst[::-1]:
@@ -66,6 +70,13 @@ class Board:
                 s += ' '
             s += '\n'
         return s
+
+class MoveTree:
+    def __init__(self, mv, parent=None):
+        self.move = mv
+        self.main_line = None
+        self.parent = parent
+        self.aux_lines = [] # unused for now; could be used later to allow analysis
 
 class Piece:
 
@@ -129,6 +140,15 @@ class Pawn(Piece):
         if is_valid(one_fr) and board.occupied(one_fr, color=other(self.color)):
             ret.append(one_fr)
         return set(ret)
+
+    def register_move(self):
+        self.has_moved = True
+
+    def get_props(self):
+        return self.has_moved
+
+    def restore_props(self, props):
+        self.has_moved = props
 
 def add_to(sq, off):
     return (sq[0] + off[0], sq[1] + off[1])
