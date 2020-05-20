@@ -1,6 +1,7 @@
 import tkinter as tk
 import argparse
 from board import all_ranks, all_files, WHITE, BLACK, Board, Move
+from game import Game
 from tests import test_movement
 
 def parse_config(config_pth):
@@ -88,7 +89,9 @@ def main():
         b_config = get_config(all_missing)
 
     board = setup_board(b_config)
-    test_movement(board)
+    #test_movement(board)
+    g = Game(board)
+    g.display_board()
 
 
 

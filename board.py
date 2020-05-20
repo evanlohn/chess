@@ -53,11 +53,7 @@ class Board:
                         locs = locs.union(piece.get_moves((r_ind, c_ind), self))
                     elif piece.name == 'K':
                         king_loc = (r_ind, c_ind)
-        return king_loc in locs
-                    
-                    
-                    
-
+        return king_loc in locs        
 
     def __str__(self):
         s = ''
@@ -72,9 +68,16 @@ class Board:
         return s
 
 class Piece:
+
+    img_pth = './images/Chess_{}{}t60.png'
+
     def __init__(self, color):
         self.color = color
         self.name = ''
+        self.img_id = ''
+
+    def get_img(self):
+        return Piece.img_pth.format(self.img_id, 'l' if self.color == WHITE else 'd')
 
     # returns all valid moves for a piece to make, following all rules of chess EXCEPT ensuring no check is present after the move.
     def get_moves(self, sq, board):
@@ -96,11 +99,15 @@ class Piece:
         return str(self)
 
 class Pawn(Piece):
+
+    
+
     def __init__(self, color):
         super().__init__(color)
         self.name = cls_to_name[Pawn]
         self.has_moved = False
         self.dir = 1 if color == WHITE else -1
+        self.img_id = 'p'
 
     def get_moves(self, sq, board):
         ret = []
@@ -130,6 +137,7 @@ class Knight(Piece):
     def __init__(self, color):
         super().__init__(color)
         self.name = cls_to_name[Knight]
+        self.img_id = 'n'
 
     def get_moves(self, sq, board):
         #why do smth clever when u can hardcode lol
@@ -158,6 +166,7 @@ class Rook(Piece):
         super().__init__(color)
         self.has_moved = False
         self.name = cls_to_name[Rook]
+        self.img_id = 'r'
 
     def get_moves(self, sq, board):
         sq_inds = sq_to_inds(sq)
@@ -171,6 +180,7 @@ class Bishop(Piece):
     def __init__(self, color):
         super().__init__(color)
         self.name = cls_to_name[Bishop]
+        self.img_id = 'b'
 
     def get_moves(self, sq, board):
         sq_inds = sq_to_inds(sq)
@@ -185,6 +195,7 @@ class Queen(Piece):
     def __init__(self, color):
         super().__init__(color)
         self.name = cls_to_name[Queen]
+        self.img_id = 'q'
 
     def get_moves(self, sq, board):
         sq_inds = sq_to_inds(sq)
@@ -199,6 +210,7 @@ class King(Piece):
         super().__init__(color)
         self.has_moved = False
         self.name = cls_to_name[King]
+        self.img_id = 'k'
 
     def get_moves(self, sq, board):
         sq_inds = sq_to_inds(sq)
