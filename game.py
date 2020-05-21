@@ -2,6 +2,15 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from board import all_ranks, all_files, WHITE, BLACK, Board, Move, other
 
+#TODO:
+# 0) winning/losing/drawing (via info pane)
+# 1) promotion (via info pane)
+# 2) print moves (via info pane)
+# 3) undo move(s) (via info pane)
+# 4) support arbitrary config files
+# 5) testing
+
+
 def click_handler(r_ind, c_ind, game):
 	def handle_click(event):
 		
@@ -21,14 +30,12 @@ def click_handler(r_ind, c_ind, game):
 				mv = game.create_move(game.selected, (r_ind, c_ind))
 				if mv.is_valid():
 					mv.make_move()
-					game.check_finished()
 					game.turn = other(game.turn)
 					game.update_all()
+					game.check_finished()	
 				game.selected = None
 			game.deselect_sq(sel_frame)
 
-
-		
 		#print('square at row {} col {} was clicked'.format(r_ind, c_ind))
 		#print('square {}{} clicked'.format(all_files[c_ind], all_ranks[r_ind]))
 	return handle_click
@@ -161,11 +168,16 @@ class Game:
 		frame.config(highlightthickness=0)
 
 	def create_move(self, src, dst):
-		#TODO: code to handle castling?
 		return Move(src, dst, self.board)
 
 	def check_finished(self):
-		return None
+		human_colors = {WHITE: 'white', BLACK: 'black'}
+		if not self.board.player_has_moves(self.turn):
+			if self.board.in_check(self.turn):
+				print('The {} player wins!'.format(human_colors[other(self.turn)]))
+			else:
+				print('Stalemate! It is a draw!!')
+		
 
 	def display_board(self):
 		self.window.mainloop()

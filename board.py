@@ -27,12 +27,15 @@ class Board:
 
     def __init__(self, config):
         self.board_lst = [[None for i in all_files] for j in all_ranks]
+        self.king_pos = {}
         for color in config:
             for piece in config[color]:
                 cls = name_to_cls[piece]
                 for loc in config[color][piece]:
                     row, col = sq_to_inds(loc)
-                    self.board_lst[row][col] = cls(color) 
+                    self.board_lst[row][col] = cls(color)
+                    if self.board_lst[row][col].name == King.name:
+                        self.king_pos[color] = (row, col)
         self.first_move = None
         self.last_move = None
 
@@ -47,16 +50,26 @@ class Board:
 
     def in_check(self, color, king_locs=[]):
         opposing_color = other(color)
-        locs = set()
+        if len(king_locs) == 0:
+            king_locs = [self.king_pos[color]]
+
         for r_ind, row in enumerate(self.board_lst):
             for c_ind, piece in enumerate(row):
-                if piece:
-                    if (piece.color == opposing_color):
-                        locs = locs.union(piece.get_moves((r_ind, c_ind), self, include_castling=False))
-                    elif len(king_locs) == 0 and piece.name == 'K':
-                        king_locs = [(r_ind, c_ind)]
+                if piece and (piece.color == opposing_color):
+                    moves = piece.get_moves((r_ind, c_ind), self, include_castling=False)
+                    if any([(loc in moves) for loc in king_locs]):
+                        return True
+        return False    
 
-        return any([(king_loc in locs) for king_loc in king_locs])     
+    def player_has_moves(self, color):
+
+        for r_ind, row in enumerate(self.board_lst):
+            for c_ind, piece in enumerate(row):
+                if piece and (piece.color == color):
+                    moves = piece.get_moves((r_ind, c_ind), self, include_castling=False)
+                    if any([Move((r_ind, c_ind), dst, self).is_valid(guaranteed_dest=True) for dst in moves]):
+                        return True
+        return False   
 
     #TODO: add to this to support side lines/analysis
     def add_move(self, mv, main_line=True):
@@ -136,9 +149,10 @@ class Piece:
 
 class Pawn(Piece):
 
+    name = 'p'
+
     def __init__(self, color):
         super().__init__(color)
-        Pawn.name = cls_to_name[Pawn]
         self.name = Pawn.name
         self.has_moved = False
         self.dir = 1 if color == WHITE else -1
@@ -200,10 +214,13 @@ class Pawn(Piece):
 def add_to(sq, off):
     return (sq[0] + off[0], sq[1] + off[1])
 
+
 class Knight(Piece):
+    name = 'k'
+
     def __init__(self, color):
         super().__init__(color)
-        self.name = cls_to_name[Knight]
+        self.name = Knight.name
         self.img_id = 'n'
 
     def get_moves(self, sq, board, include_castling=False):
@@ -229,10 +246,12 @@ def add_until_piece(sq, off, board, opposing_color):
     return set(ray)
 
 class Rook(Piece):
+    name = 'r'
+
     def __init__(self, color):
         super().__init__(color)
         self.has_moved = False
-        self.name = cls_to_name[Rook]
+        self.name = Rook.name
         self.img_id = 'r'
 
     def get_moves(self, sq, board, include_castling=False):
@@ -253,9 +272,11 @@ class Rook(Piece):
         self.has_moved = props
 
 class Bishop(Piece):
+    name = 'b'
+
     def __init__(self, color):
         super().__init__(color)
-        self.name = cls_to_name[Bishop]
+        self.name = Bishop.name
         self.img_id = 'b'
 
     def get_moves(self, sq, board, include_castling=False):
@@ -266,11 +287,12 @@ class Bishop(Piece):
             ms = ms.union(add_until_piece(sq_inds, off, board, other(self.color)))
         return ms
 
-
 class Queen(Piece):
+    name = 'q'
+
     def __init__(self, color):
         super().__init__(color)
-        self.name = cls_to_name[Queen]
+        self.name = Queen.name
         self.img_id = 'q'
 
     def get_moves(self, sq, board, include_castling=False):
@@ -282,10 +304,11 @@ class Queen(Piece):
         return ms
 
 class King(Piece):
+    name = 'K'
+
     def __init__(self, color):
         super().__init__(color)
         self.has_moved = False
-        King.name = cls_to_name[King]
         self.name = King.name
         self.img_id = 'k'
 
@@ -321,8 +344,7 @@ class King(Piece):
     def restore_props(self, props):
         self.has_moved = props
 
-name_to_cls = {'p': Pawn, 'k': Knight, 'r': Rook, 'b': Bishop, 'q': Queen, 'K': King}
-cls_to_name = {name_to_cls[k]: k for k in name_to_cls}
+name_to_cls = {clas.name: clas for clas in [Pawn, Knight, Rook, Bishop, Queen, King]}
 
 
 class Move:
@@ -336,22 +358,23 @@ class Move:
         
         self.castling = (self.piece.name == King.name) and (abs(self.src[1] - self.dst[1]) == 2)
         
-        self.en_passant = (self.piece.name == Pawn.name) and (abs(self.src[0] - self.dst[0]) == 1) \
-                and (abs(self.src[1] - self.dst[1]) == 1) and (self.board.get_piece(dst) is None)
+        self.en_passant = (self.piece.name == Pawn.name) and (abs(self.src[1] - self.dst[1]) == 1) and not self.board.occupied(dst)
 
-    def is_valid(self):
+    def is_valid(self, guaranteed_dest=False):
         if self.castling:
             moves = self.piece.get_moves(self.src, self.board, include_castling=True)
             return self.dst in moves
         else:
             if not self.piece:
                 return False
-            moves = self.piece.get_moves(self.src, self.board)
-            #print(moves, self.dst)
 
-            # check that the move follows the rules of piece movement
-            if self.dst not in moves:
-                return False
+            if not guaranteed_dest:
+                moves = self.piece.get_moves(self.src, self.board)
+                #print(moves, self.dst)
+
+                # check that the move follows the rules of piece movement
+                if self.dst not in moves:
+                    return False
 
             self.make_move()
             in_check = self.board.in_check(self.piece.color)
@@ -391,6 +414,8 @@ class Move:
         self.board.board_lst[row][col] = None
 
         self.board.add_move(self)
+        if self.piece.name == King.name:
+            self.board.king_pos[self.piece.color] = self.dst
 
     def undo_move(self):
         if self.castling:
@@ -418,3 +443,5 @@ class Move:
         self.piece.restore_props(self.old_piece_props)
 
         self.board.delete_move()
+        if self.piece.name == King.name:
+            self.board.king_pos[self.piece.color] = self.src
