@@ -97,6 +97,20 @@ class Board:
             return None
         return self.last_move.move
 
+    def moves_as_text(self):
+        start = self.first_move
+        ret = []
+        while start is not None:
+            ret.append(str(start.move))
+            start = start.main_line
+        return ret
+
+    def notify_last_move_checkmate(self):
+        self.last_move.move.checkmate=True
+
+    def notify_last_move_check(self):
+        self.last_move.move.check=True
+
     def __str__(self):
         s = ''
         for row in self.board_lst[::-1]:
@@ -124,6 +138,9 @@ class Piece:
         self.color = color
         self.name = ''
         self.img_id = ''
+
+    def move_id(self):
+        return self.img_id.upper()
 
     def get_img(self):
         return Piece.img_pth.format(self.img_id, 'l' if self.color == WHITE else 'd')
@@ -222,6 +239,7 @@ class Knight(Piece):
         super().__init__(color)
         self.name = Knight.name
         self.img_id = 'n'
+
 
     def get_moves(self, sq, board, include_castling=False):
         #why do smth clever when u can hardcode lol
@@ -359,6 +377,8 @@ class Move:
         self.castling = (self.piece.name == King.name) and (abs(self.src[1] - self.dst[1]) == 2)
         
         self.en_passant = (self.piece.name == Pawn.name) and (abs(self.src[1] - self.dst[1]) == 1) and not self.board.occupied(dst)
+        self.check = False
+        self.checkmate = False
 
     def is_valid(self, guaranteed_dest=False):
         if self.castling:
@@ -381,11 +401,13 @@ class Move:
             self.undo_move()
             return not in_check
 
+    def kingside(self):
+        return self.dst[1] > self.src[1]
 
     def make_move(self):
         # TODO: handle en passant, castling
         if self.castling:
-            if self.dst[1] > self.src[1]:
+            if self.kingside():
                 rook_sq = add_to(self.src, (0, 3))
                 new_rook_sq = add_to(self.src, (0,1))
             else:
@@ -419,7 +441,7 @@ class Move:
 
     def undo_move(self):
         if self.castling:
-            if self.dst[1] > self.src[1]:
+            if self.kingside():
                 rook_sq = add_to(self.src, (0, 3))
                 new_rook_sq = add_to(self.src, (0,1))
                 
@@ -434,6 +456,7 @@ class Move:
         elif self.en_passant:
             take_r, take_c = self.taken_loc
             self.board.board_lst[take_r][take_c] = self.taken_piece
+            self.board.board_lst[self.dst[0]][self.dst[1]] = None
         else:
             new_row, new_col = self.dst
             self.board.board_lst[new_row][new_col] = self.taken_piece
@@ -445,3 +468,27 @@ class Move:
         self.board.delete_move()
         if self.piece.name == King.name:
             self.board.king_pos[self.piece.color] = self.src
+
+    def __str__(self):
+        if self.castling:
+            if self.kingside():
+                s = 'O-O'
+            else:
+                s = 'O-O-O'
+        else:
+            s = ''
+            if self.piece.name != Pawn.name:
+                s += self.piece.move_id()
+
+            if self.taken_piece is not None:
+                if self.piece.name == Pawn.name:
+                    s += all_files[self.src[1]] 
+                s += 'x'
+            s += all_files[self.dst[1]] + all_ranks[self.dst[0]]
+
+        if self.checkmate:
+            s += '#'
+        elif self.check:
+            s += '+'
+
+        return s

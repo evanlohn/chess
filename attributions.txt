@@ -22,3 +22,6 @@ Dark Rook image
 	By en:User:Cburnett - File:Chess rdt45.svg, CC BY-SA 3.0, https://commons.wikimedia.org/w/index.php?curid=20363786
 Light Rook image
 	By en:User:Cburnett - File:Chess rlt45.svg, CC BY-SA 3.0, https://commons.wikimedia.org/w/index.php?curid=20363775
+
+scrollable grid for move listing:
+	https://stackoverflow.com/a/43788752

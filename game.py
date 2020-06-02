@@ -9,7 +9,7 @@ from board import all_ranks, all_files, WHITE, BLACK, Board, Move, other
 # 3) undo move(s) (via info pane)
 # 4) support arbitrary config files
 # 5) testing
-
+human_colors = {WHITE: 'white', BLACK: 'black'}
 
 def click_handler(r_ind, c_ind, game):
 	def handle_click(event):
@@ -31,8 +31,9 @@ def click_handler(r_ind, c_ind, game):
 				if mv.is_valid():
 					mv.make_move()
 					game.turn = other(game.turn)
-					game.update_all()
+					game.notif_label.grid_forget()
 					game.check_finished()	
+					game.update_all()
 				game.selected = None
 			game.deselect_sq(sel_frame)
 
@@ -52,7 +53,6 @@ class Game:
 		self.board_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 		self.info_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 		self.all_pimgs = {} #PhotoImage cache
-
 
 		## state used for turns
 		self.turn = WHITE # white goes first
@@ -97,6 +97,60 @@ class Game:
 				frame.grid(row=r_ind + 1, column=c_ind + 1, sticky="nsew")
 
 				#self.update_square(r_ind, c_ind)
+
+		## Add info pane stuff 
+		self.turn_label = tk.Label(self.info_frame, text='Turn: White')
+		self.turn_label.grid(row=0, column=0, sticky='nsew')
+
+		# Move List (see attributions for code source)
+
+		frame_canvas = tk.Frame(self.info_frame)
+		frame_canvas.grid(row=1, column=0, pady=(5, 0), sticky='nw')
+		frame_canvas.grid_rowconfigure(0, weight=1)
+		frame_canvas.grid_columnconfigure(0, weight=1)
+		# Set grid_propagate to False to allow 5-by-5 buttons resizing later
+		frame_canvas.grid_propagate(False)
+
+		# Add a canvas in that frame
+		canvas = tk.Canvas(frame_canvas, bg="yellow")
+		canvas.grid(row=0, column=0, sticky="news")
+
+		# Link a scrollbar to the canvas
+		vsb = tk.Scrollbar(frame_canvas, orient="vertical", command=canvas.yview)
+		vsb.grid(row=0, column=1, sticky='ns')
+		canvas.configure(yscrollcommand=vsb.set)
+
+		# Create a frame to contain the buttons
+		frame_labels = tk.Frame(canvas, bg="blue")
+		canvas.create_window((0, 0), window=frame_labels, anchor='nw')
+
+		# Add 1 by 2 moves to the frame
+		
+		moves = [['White', 'Black']] #+ [['a', 'b'] for _ in range(10)]
+		rows = len(moves)
+		columns = len(moves[0])
+		for i in range(0, rows):
+		    for j in range(0, columns):
+		        moves[i][j] = tk.Label(frame_labels, text=moves[i][j])
+		        if i == 0:
+		        	moves[i][j].config(bg='orange')
+		        moves[i][j].grid(row=i, column=j, sticky='news')
+
+		# Update buttons frames idle tasks to let tkinter calculate buttons sizes
+		frame_labels.update_idletasks()
+		self.frame_labels = frame_labels
+
+		# Resize the canvas frame to show exactly 5-by-5 labels and the scrollbar
+		first5columns_width = sum([moves[0][j].winfo_width() for j in range(columns)])
+		first5rows_height = moves[0][0].winfo_height() * 5
+		frame_canvas.config(width=first5columns_width + vsb.winfo_width(),
+		                    height=first5rows_height)
+
+		# Set the canvas scrolling region
+		canvas.config(scrollregion=canvas.bbox("all"))
+		self.moves_canvas = canvas
+
+		self.notif_label = tk.Label(self.info_frame, text='')
 
 
 		self.update_all()
@@ -151,6 +205,30 @@ class Game:
 			frame.displayed_label = label
 
 	def update_all(self):
+		self.turn_label.config(text='Turn: {}'.format(human_colors[self.turn]))
+		for txt in self.frame_labels.grid_slaves():
+			txt.grid_forget()
+			txt.destroy()
+
+		mv_texts = ['White', 'Black'] + self.board.moves_as_text()
+		for i, mv_text in enumerate(mv_texts):
+			row = (i//2)
+			col = i % 2
+			lbl = tk.Label(self.frame_labels, text=mv_text)
+			if row == 0:
+				lbl.config(bg='orange')
+			lbl.grid(row=row, column=col, sticky='news')
+		if col == 0:
+			lbl = tk.Label(self.frame_labels, text='')
+			lbl.grid(row=row, column=1, sticky='news')
+
+		self.frame_labels.update_idletasks()
+
+		# Set the canvas scrolling region
+		self.moves_canvas.config(scrollregion=self.moves_canvas.bbox("all"))
+		
+
+		self.frame_labels
 		for r_ind, row in enumerate(self.board.board_lst):
 			frame = self.board_frame.grid_slaves(row=r_ind + 1, column=0)[0]
 			letter_ind = r_ind if self.turn == BLACK else len(all_ranks) - r_ind - 1
@@ -171,12 +249,22 @@ class Game:
 		return Move(src, dst, self.board)
 
 	def check_finished(self):
-		human_colors = {WHITE: 'white', BLACK: 'black'}
+		
+
+		in_check = self.board.in_check(self.turn)
 		if not self.board.player_has_moves(self.turn):
-			if self.board.in_check(self.turn):
+			if in_check:
+				self.notif_label.config(text='{} wins!'.format(human_colors[other(self.turn)]))
+				self.board.notify_last_move_checkmate()
 				print('The {} player wins!'.format(human_colors[other(self.turn)]))
 			else:
+				self.notif_label.config(text='stalemate!')
 				print('Stalemate! It is a draw!!')
+			self.notif_label.grid(row=2, column=0, sticky='news')
+		elif in_check:
+			self.notif_label.config(text='check!')
+			self.notif_label.grid(row=2, column=0, sticky='news')
+			self.board.notify_last_move_check()
 		
 
 	def display_board(self):
